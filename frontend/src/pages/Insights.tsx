@@ -1,37 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { InsightSummary } from '../types';
-import { apiClient } from '../lib/api';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import Badge from '../components/ui/Badge';
+import { useState, useEffect, useCallback } from "react";
+import { InsightSummary } from "../types";
+import { apiClient } from "../lib/api";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../components/ui/Card";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Badge from "../components/ui/Badge";
 
 interface InsightsProps {
   selectedDataset: number | null;
   refreshDatasets: () => void;
 }
 
-export default function Insights({ selectedDataset, refreshDatasets }: InsightsProps) {
+export default function Insights({ selectedDataset }: InsightsProps) {
   const [insights, setInsights] = useState<InsightSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadInsights();
-  }, [selectedDataset]);
+  const loadInsights = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        setLoading(true);
+        const response = await apiClient.getInsights(
+          selectedDataset || undefined,
+          signal,
+        );
+        if (signal?.aborted) return;
+        setInsights(response.data);
+        setError(null);
+      } catch (err) {
+        if (signal?.aborted) return;
+        setError("Failed to load insights");
+        console.error(err);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [selectedDataset],
+  );
 
-  const loadInsights = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.getInsights(selectedDataset || undefined);
-      setInsights(response.data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load insights');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadInsights(controller.signal);
+    return () => controller.abort();
+  }, [loadInsights]);
 
   if (loading) {
     return (
@@ -44,21 +59,31 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
   if (error || !insights) {
     return (
       <div className="text-center text-gray-400 py-12">
-        <p>{error || 'No insights available'}</p>
+        <p role="alert">{error || "No insights available"}</p>
+        <button
+          className="import-link mt-4"
+          onClick={() => void loadInsights()}
+        >
+          Try again
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 insights-page">
       <Card>
         <CardHeader>
           <CardTitle>Executive Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-300 leading-relaxed">{insights.executive_summary}</p>
+          <p className="text-gray-300 leading-relaxed">
+            {insights.executive_summary}
+          </p>
           <div className="mt-4">
-            <Badge variant="neutral">Analysis method: {insights.analysis_method}</Badge>
+            <Badge variant="neutral">
+              Analysis method: {insights.analysis_method}
+            </Badge>
           </div>
         </CardContent>
       </Card>
@@ -76,12 +101,16 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
                 {insights.positive_themes.map((theme, index) => (
                   <div key={index} className="border-l-2 border-success pl-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-100">{theme.theme}</h4>
+                      <h4 className="font-medium text-gray-100">
+                        {theme.theme}
+                      </h4>
                       <Badge variant="success">{theme.count} mentions</Badge>
                     </div>
                     <div className="space-y-1">
                       {theme.examples.map((example, i) => (
-                        <p key={i} className="text-sm text-gray-400 italic">{example}</p>
+                        <p key={i} className="text-sm text-gray-400 italic">
+                          {example}
+                        </p>
                       ))}
                     </div>
                   </div>
@@ -103,12 +132,16 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
                 {insights.negative_themes.map((theme, index) => (
                   <div key={index} className="border-l-2 border-danger pl-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-100">{theme.theme}</h4>
+                      <h4 className="font-medium text-gray-100">
+                        {theme.theme}
+                      </h4>
                       <Badge variant="danger">{theme.count} mentions</Badge>
                     </div>
                     <div className="space-y-1">
                       {theme.examples.map((example, i) => (
-                        <p key={i} className="text-sm text-gray-400 italic">{example}</p>
+                        <p key={i} className="text-sm text-gray-400 italic">
+                          {example}
+                        </p>
                       ))}
                     </div>
                   </div>
@@ -129,14 +162,23 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
           ) : (
             <div className="space-y-4">
               {insights.common_complaints.map((complaint, index) => (
-                <div key={index} className="border border-gray-700 rounded-lg p-4">
+                <div
+                  key={index}
+                  className="border border-gray-700 rounded-lg p-4"
+                >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-100">{complaint.theme}</h4>
-                    <Badge variant="warning">{complaint.count} complaints</Badge>
+                    <h4 className="font-medium text-gray-100">
+                      {complaint.theme}
+                    </h4>
+                    <Badge variant="warning">
+                      {complaint.count} complaints
+                    </Badge>
                   </div>
                   <div className="space-y-1">
                     {complaint.examples.map((example, i) => (
-                      <p key={i} className="text-sm text-gray-400 italic">{example}</p>
+                      <p key={i} className="text-sm text-gray-400 italic">
+                        {example}
+                      </p>
                     ))}
                   </div>
                 </div>
@@ -176,7 +218,9 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
           <CardContent>
             <ul className="space-y-2">
               {insights.emerging_issues.map((issue, index) => (
-                <li key={index} className="text-gray-300">• {issue}</li>
+                <li key={index} className="text-gray-300">
+                  • {issue}
+                </li>
               ))}
             </ul>
           </CardContent>
@@ -190,30 +234,42 @@ export default function Insights({ selectedDataset, refreshDatasets }: InsightsP
         <CardContent>
           <div className="space-y-6">
             <div>
-              <h4 className="font-medium text-success mb-3">Positive Reviews</h4>
-              {insights.representative_reviews.positive.length === 0 ? (
+              <h4 className="font-medium text-success mb-3">
+                Positive Reviews
+              </h4>
+              {(insights.representative_reviews.positive || []).length === 0 ? (
                 <p className="text-gray-400">No positive reviews available</p>
               ) : (
                 <div className="space-y-2">
-                  {insights.representative_reviews.positive.map((review, index) => (
-                    <p key={index} className="text-sm text-gray-300 bg-surfaceLight rounded p-3">
-                      {review}
-                    </p>
-                  ))}
+                  {(insights.representative_reviews.positive || []).map(
+                    (review, index) => (
+                      <p
+                        key={index}
+                        className="text-sm text-gray-300 bg-surfaceLight rounded p-3"
+                      >
+                        {review}
+                      </p>
+                    ),
+                  )}
                 </div>
               )}
             </div>
             <div>
               <h4 className="font-medium text-danger mb-3">Negative Reviews</h4>
-              {insights.representative_reviews.negative.length === 0 ? (
+              {(insights.representative_reviews.negative || []).length === 0 ? (
                 <p className="text-gray-400">No negative reviews available</p>
               ) : (
                 <div className="space-y-2">
-                  {insights.representative_reviews.negative.map((review, index) => (
-                    <p key={index} className="text-sm text-gray-300 bg-surfaceLight rounded p-3">
-                      {review}
-                    </p>
-                  ))}
+                  {(insights.representative_reviews.negative || []).map(
+                    (review, index) => (
+                      <p
+                        key={index}
+                        className="text-sm text-gray-300 bg-surfaceLight rounded p-3"
+                      >
+                        {review}
+                      </p>
+                    ),
+                  )}
                 </div>
               )}
             </div>

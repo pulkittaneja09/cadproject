@@ -5,10 +5,10 @@ export interface Feedback {
   date: string | null;
   product: string | null;
   rating: number | null;
-  sentiment: 'positive' | 'neutral' | 'negative' | null;
+  sentiment: "positive" | "neutral" | "negative" | null;
   confidence: number | null;
   category: string | null;
-  priority: 'low' | 'medium' | 'high' | null;
+  priority: "low" | "medium" | "high" | null;
   priority_explanation: string | null;
   created_at: string;
   analyzed_at: string | null;
@@ -89,7 +89,10 @@ export interface InsightSummary {
   positive_themes: Theme[];
   negative_themes: Theme[];
   common_complaints: Theme[];
-  category_wise_sentiment: Record<string, { positive: number; neutral: number; negative: number }>;
+  category_wise_sentiment: Record<
+    string,
+    { positive: number; neutral: number; negative: number }
+  >;
   representative_reviews: {
     positive: string[];
     negative: string[];

@@ -1,45 +1,46 @@
-import { Dataset } from '../types';
-import Select from '../components/ui/Select';
-
+import { Database } from "lucide-react";
+import { Dataset } from "../types";
+import Select from "../components/ui/Select";
 interface NavbarProps {
   title: string;
   datasets: Dataset[];
   selectedDataset: number | null;
-  onDatasetChange: (datasetId: number | null) => void;
+  onDatasetChange: (id: number | null) => void;
+  showDatasetSelector?: boolean;
 }
-
-export default function Navbar({ title, datasets, selectedDataset, onDatasetChange }: NavbarProps) {
+export default function Navbar({
+  title,
+  datasets,
+  selectedDataset,
+  onDatasetChange,
+  showDatasetSelector = true,
+}: NavbarProps) {
   return (
-    <header className="bg-surface border-b border-gray-700 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
-          
-          {datasets.length > 0 && (
-            <div className="w-64">
-              <Select
-                value={selectedDataset?.toString() || ''}
-                onChange={(e) => onDatasetChange(e.target.value ? parseInt(e.target.value) : null)}
-              >
-                <option value="">All Datasets</option>
-                {datasets.map((dataset) => (
-                  <option key={dataset.id} value={dataset.id.toString()}>
-                    {dataset.name} ({dataset.row_count} reviews)
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <div className="w-8 h-8 rounded-full bg-primaryLight flex items-center justify-center">
-              <span className="text-white font-medium">U</span>
-            </div>
-          </div>
-        </div>
+    <header className="topbar">
+      <div className="breadcrumbs">
+        Workspace <span>/</span>
+        <strong>{title}</strong>
       </div>
+      {showDatasetSelector && (
+        <div className="dataset-control">
+          <Database size={15} />
+          <Select
+            aria-label="Active dataset"
+            value={selectedDataset ?? ""}
+            onChange={(e) =>
+              onDatasetChange(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">All datasets</option>
+            {datasets.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
+      <span className="local-label">Local workspace</span>
     </header>
   );
 }
