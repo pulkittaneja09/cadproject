@@ -4,7 +4,7 @@ Unit tests for Gemini AI service
 
 import sys
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from app.ai.gemini_service import gemini_service, AnalysisError
 
 
@@ -90,7 +90,7 @@ class TestGeminiService:
         gemini_service._initialized = False
         gemini_service._use_fallback = False
         
-        with patch.dict('sys.modules', {'google.generativeai': None}):
+        with patch.dict('sys.modules', {'google': None}):
             gemini_service._initialize()
         
         assert gemini_service._use_fallback is True
@@ -120,3 +120,5 @@ class TestGeminiService:
         assert categories[0] == "Delivery"
         assert categories[1] == "Customer Support"
         assert categories[2] == "Payment"
+    
+

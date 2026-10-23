@@ -67,16 +67,14 @@ class GeminiService:
                 self._initialized = True
                 return
             
-            import google.generativeai as genai
+            from google import genai
             
-            genai.configure(api_key=settings.gemini_api_key)
-            self._client = genai
-            self._model = genai.GenerativeModel(settings.gemini_model)
+            self._client = genai.Client(api_key=settings.gemini_api_key)
             self._initialized = True
             logger.info(f"Gemini service initialized with model: {settings.gemini_model}")
             
         except ImportError:
-            logger.error("google-generativeai not installed, using fallback mode")
+            logger.error("google-genai not installed, using fallback mode")
             self._use_fallback = True
             self._initialized = True
         except Exception as e:
@@ -92,23 +90,23 @@ class GeminiService:
         try:
             self._initialize()
             
-            # Configure generation parameters
-            generation_config = {
-                "temperature": 0.3,
-                "top_p": 0.8,
-                "top_k": 40,
-                "max_output_tokens": 1024,
-            }
-            
             if response_format:
                 # For structured output, include JSON format instruction
                 prompt += f"\n\nRespond in valid JSON format with this schema: {json.dumps(response_format)}"
             
-            response = self._model.generate_content(
-                prompt,
-                generation_config=generation_config
+            # Use new SDK interface
+            response = self._client.models.generate_content(
+                model=settings.gemini_model,
+                contents=prompt,
+                config={
+                    "temperature": 0.3,
+                    "top_p": 0.8,
+                    "top_k": 40,
+                    "max_output_tokens": 1024,
+                }
             )
             
+            # Extract text from response
             return response.text
             
         except Exception as e:
