@@ -8,7 +8,7 @@ A complete, functional AI-powered customer feedback analytics platform built for
 - **Python + FastAPI** - Modern, fast web framework
 - **Pydantic** - Data validation using Python type annotations
 - **SQLAlchemy + SQLite** - Database ORM and local storage
-- **Hugging Face Transformers** - Pretrained sentiment analysis model
+- **Google Gemini API** - AI-powered sentiment analysis, categorization, and insights
 - **Pandas** - Data processing
 - **Boto3** - AWS SDK (for future cloud deployment)
 
@@ -79,8 +79,9 @@ npm install
 # Copy example environment file (from project root)
 Copy-Item .env.example .env
 
-# Edit .env to configure settings (optional for local development)
-# Default settings work for local development
+# Edit .env to configure Gemini API key (required for AI features)
+# Get your API key from: https://makersuite.google.com/app/apikey
+# Set GEMINI_API_KEY=your_actual_api_key_here
 ```
 
 ## Running the Application
@@ -102,6 +103,8 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Backend will be available at: `http://localhost:8000`
 
 API Documentation: `http://localhost:8000/docs`
+
+**Note**: If `GEMINI_API_KEY` is not configured, the application will use fallback keyword-based analysis. This is suitable for testing but less accurate than Gemini AI.
 
 ### Start Frontend (New PowerShell Terminal)
 
@@ -194,14 +197,15 @@ pytest tests/
 ## AI Features
 
 ### Sentiment Analysis
-- Uses Hugging Face Transformers model (`cardiffnlp/twitter-roberta-base-sentiment-latest`)
+- Uses Google Gemini API for AI-powered sentiment analysis
 - Classifies feedback as positive, neutral, or negative
 - Provides confidence scores
-- Falls back to rule-based analysis if model unavailable
+- Falls back to rule-based analysis if API unavailable or no API key configured
 
 ### Complaint Categorization
+- Uses Google Gemini API for intelligent categorization
 - Categories: Delivery, Customer Support, Payment, Product Quality, Pricing, App/Usability, Other
-- Keyword-based classification (can be extended with LLM)
+- Falls back to keyword-based classification if API unavailable
 
 ### Priority Detection
 - High priority: Negative sentiment with high confidence + urgent keywords
@@ -256,15 +260,93 @@ STORAGE_MODE=aws
 - Install dependencies: `npm install`
 - Verify port 5173 is not in use
 
-### AI model fails to load
-- The application will automatically fall back to rule-based sentiment analysis
-- Check internet connection (model download requires internet)
+### Gemini API errors
+- Verify `GEMINI_API_KEY` is set in `.env`
+- Check your API key is valid at https://makersuite.google.com/app/apikey
+- If API quota exceeded, application will fall back to keyword-based analysis
 - Check logs for specific error messages
 
 ### CORS errors
 - Ensure backend is running on port 8000
 - Check CORS configuration in `backend/app/main.py`
 - Verify frontend proxy settings in `frontend/vite.config.ts`
+
+## Deployment to AWS EC2
+
+### Prerequisites
+- Amazon Linux 2023 EC2 instance (t3.micro or t3.small recommended)
+- Python 3.11+ installed
+- Security group allows SSH (port 22) and HTTP (port 8000)
+
+### Deployment Steps
+
+1. **Connect to EC2 instance**
+```bash
+ssh -i your-key.pem ec2-user@your-instance-ip
+```
+
+2. **Install Python and dependencies**
+```bash
+sudo dnf install python3.11 python3.11-pip git -y
+python3.11 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+```
+
+3. **Clone and setup application**
+```bash
+git clone <your-repo-url>
+cd aws-project
+pip install -r requirements.txt
+```
+
+4. **Configure environment**
+```bash
+cp .env.example .env
+nano .env
+# Set GEMINI_API_KEY and other configuration
+```
+
+5. **Start backend with systemd**
+```bash
+sudo nano /etc/systemd/system/insightpulse.service
+```
+
+Add the following content:
+```ini
+[Unit]
+Description=InsightPulse AI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/aws-project/backend
+Environment="PATH=/home/ec2-user/aws-project/venv/bin"
+ExecStart=/home/ec2-user/aws-project/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start the service:
+```bash
+sudo systemctl enable insightpulse
+sudo systemctl start insightpulse
+sudo systemctl status insightpulse
+```
+
+6. **Configure frontend (separate deployment)**
+- Build frontend: `cd frontend && npm run build`
+- Deploy dist/ to S3 + CloudFront or use Amplify
+- Update CORS origins in backend to match production domain
+
+### Security Notes
+- Never commit `.env` file with real API keys
+- Use IAM roles for AWS services instead of access keys when possible
+- Restrict security group access to necessary ports only
+- Enable HTTPS in production (use reverse proxy like nginx)
 
 ## Development Notes
 

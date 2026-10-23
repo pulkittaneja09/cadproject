@@ -1,101 +1,38 @@
 from typing import List, Tuple, Optional
 import logging
 from app.config import settings
+from app.ai.gemini_service import gemini_service, AnalysisError
 
 logger = logging.getLogger(__name__)
 
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.model = None
-        self.tokenizer = None
-        self.model_loaded = False
+        self.use_gemini = True
         self.fallback_mode = False
     
-    def load_model(self):
-        if self.model_loaded:
-            return
-        
-        try:
-            from transformers import AutoTokenizer, AutoModelForSequenceClassification
-            import torch
-            
-            logger.info(f"Loading sentiment model: {settings.sentiment_model}")
-            self.tokenizer = AutoTokenizer.from_pretrained(settings.sentiment_model)
-            self.model = AutoModelForSequenceClassification.from_pretrained(settings.sentiment_model)
-            self.model_loaded = True
-            logger.info("Sentiment model loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load sentiment model: {e}")
-            if settings.enable_ai_fallback:
-                logger.warning("Falling back to rule-based sentiment analysis")
-                self.fallback_mode = True
-            else:
-                raise
-    
     def analyze_sentiment(self, text: str) -> Tuple[str, float]:
-        if not self.model_loaded and not self.fallback_mode:
-            self.load_model()
-        
+        """Analyze sentiment using Gemini API with fallback"""
         if self.fallback_mode:
             return self._fallback_sentiment(text)
         
         try:
-            import torch
-            
-            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-            with torch.no_grad():
-                outputs = self.model(**inputs)
-            
-            predictions = outputs.logits.softmax(dim=-1)
-            scores = predictions[0].tolist()
-            
-            # Model returns [negative, neutral, positive]
-            labels = ["negative", "neutral", "positive"]
-            max_idx = scores.index(max(scores))
-            sentiment = labels[max_idx]
-            confidence = scores[max_idx]
-            
-            return sentiment, confidence
-        except Exception as e:
-            logger.error(f"Error during sentiment analysis: {e}")
+            return gemini_service.analyze_sentiment(text)
+        except AnalysisError as e:
+            logger.warning(f"Gemini sentiment analysis failed: {e}, using fallback")
             if settings.enable_ai_fallback:
                 return self._fallback_sentiment(text)
             raise
     
     def analyze_batch(self, texts: List[str]) -> List[Tuple[str, float]]:
-        if not self.model_loaded and not self.fallback_mode:
-            self.load_model()
-        
+        """Analyze sentiment for multiple texts"""
         if self.fallback_mode:
             return [self._fallback_sentiment(text) for text in texts]
         
         try:
-            import torch
-            
-            results = []
-            batch_size = 16
-            
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                inputs = self.tokenizer(batch, return_tensors="pt", truncation=True, max_length=512, padding=True)
-                
-                with torch.no_grad():
-                    outputs = self.model(**inputs)
-                
-                predictions = outputs.logits.softmax(dim=-1)
-                
-                for j in range(len(batch)):
-                    scores = predictions[j].tolist()
-                    labels = ["negative", "neutral", "positive"]
-                    max_idx = scores.index(max(scores))
-                    sentiment = labels[max_idx]
-                    confidence = scores[max_idx]
-                    results.append((sentiment, confidence))
-            
-            return results
-        except Exception as e:
-            logger.error(f"Error during batch sentiment analysis: {e}")
+            return gemini_service.analyze_sentiment_batch(texts)
+        except AnalysisError as e:
+            logger.warning(f"Gemini batch sentiment analysis failed: {e}, using fallback")
             if settings.enable_ai_fallback:
                 return [self._fallback_sentiment(text) for text in texts]
             raise

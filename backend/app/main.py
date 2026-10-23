@@ -42,6 +42,7 @@ async def health_check():
     return {
         "status": "healthy",
         "storage_mode": settings.storage_mode,
-        "ai_model": settings.sentiment_model,
-        "ai_fallback_enabled": settings.enable_ai_fallback
+        "ai_model": settings.gemini_model if settings.gemini_api_key else "fallback",
+        "ai_fallback_enabled": settings.enable_ai_fallback,
+        "gemini_configured": bool(settings.gemini_api_key)
     }
